@@ -31,9 +31,9 @@ app.get('/request-log', function(req, res){
         return entry.time > afterTime;
     });
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify(JSON.stringify(logEntriesToSend)));
+    res.end(JSON.stringify(logEntriesToSend));
 });
-app.listen(8080);
+app.listen(47673);
 
 
 // Setup initial empty config, read config from file and setup watcher for config file
