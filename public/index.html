@@ -7,6 +7,7 @@
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 
     <style type="text/css">
+        div { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
             box-sizing: border-box; width: 100%; height: 100%; font-size: 0; overflow: hidden; }
 
@@ -17,7 +18,7 @@
         #leftPanel { left: 0; top: 0; padding-right: 5px; width: 40%; }
         #rightPanel { left: 40%; top: -100%; padding-left: 5px; width: 60% }
 
-        .step { box-sizing: border-box; border: 1px solid #c0c0c0; border-radius: 10px 10px 0 0; background-color: #ffffff;
+        .panelLayout { box-sizing: border-box; border: 1px solid #c0c0c0; border-radius: 10px 10px 0 0; background-color: #ffffff;
             font-size: 9pt; width: 100%; height: 100%; padding: 0 0 50px 0; margin: 0px; }
 
         h1 { font-size: 30px; margin: 5px 0 0 0; }
@@ -31,7 +32,7 @@
             font-size: 20px;
             text-align: center;
         }
-        #config { display: block; width: 100%; height: 100%;
+        #config { box-sizing: border-box; display: block; width: 100%; height: 100%; border: 0; border-bottom: 1px solid #c0c0c0;
             font: 12px/12px 'Courier new',monospace; overflow: scroll; margin: 0; padding: 0; }
         #log { box-sizing: border-box; font: 12px/12px 'Courier new',monospace; overflow: scroll; height: 100%; margin: 0; }
         .content { box-sizing: border-box; margin: 0; height: 100%; }
@@ -45,22 +46,24 @@
     </div>
     <div id="main">
         <div class="panel" id="leftPanel">
-            <div id="step1" class="step">
-                <h2>Config</h2>
-                <div class="content">
-                    <textarea id="config">
-(no data received yet)
-                    </textarea>
+            <div class="panelLayout" style="position: relative;">
+                <div style="box-sizing: border-box; height: 100%; padding-bottom: 30px; position: relative;">
+                    <h2>Config</h2>
+                    <div class="content">
+                        <textarea id="config">(no data received yet)</textarea>
+                    </div>
+                </div>
+                <div style="position: absolute; bottom: 0; height: 30px; width: 100%; text-align: right;">
+                    <button id="cancelButton" onclick="cancelConfig();">Cancel</button>
+                    <button id="saveButton" onclick="saveConfig();">Save</button>
                 </div>
             </div>
         </div>
         <div class="panel" id="rightPanel">
-            <div id="step2" class="step">
+            <div class="panelLayout">
                 <h2>Request log</h2>
                 <div class="content">
-                    <pre id="log">
-                        (no data received yet)
-                    </pre>
+                    <pre id="log">(no data received yet)</pre>
                 </div>
             </div>
         </div>
@@ -71,12 +74,13 @@
 
         // The config editor logic
         var latestServerConfig = '';
+        var configEl = document.getElementById('config');
+
         function pollConfig() {
             $.ajax({
                 type: 'GET',
                 url: 'config?rnd=' + Math.random(),
                 success: function (data) {
-                    var configEl = document.getElementById('config');
                     if (!latestServerConfig || latestServerConfig === configEl.value) {
                         configEl.value = JSON.stringify(data, null, 2);
                         latestServerConfig = configEl.value;
@@ -90,10 +94,37 @@
         }
         pollConfig();
 
+        function saveConfig() {
+            if (confirm('Are you sure?')) {
+                $.ajax({
+                    type: 'POST',
+                    url: 'config',
+                    data: configEl.value,
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    success: function () {
+                        alert('Configuration saved.');
+                    },
+                    error: function () {
+                        alert('Unable to save config. Check syntax.');
+                    }
+                });
+            }
+        }
+
+        function cancelConfig() {
+            if (confirm('Are you sure?')) {
+                configEl.value = latestServerConfig;
+            }
+        }
+
+
 
         // The request log logic
         var requestLog = [];
         var afterTime = 0;
+        var logEl = document.getElementById('log');
+
         function pollRequestLog() {
             $.ajax({
                 type: 'GET',
@@ -111,7 +142,6 @@
                         requestLog.forEach(function (entry) {
                             html += (entry.allow ? 'ALLOW ' : 'DENY  ') + entry.method + ' ' + entry.url + '\n';
                         });
-                        var logEl = document.getElementById('log');
                         var wasAtBottom = (logEl.scrollTop + logEl.clientHeight + 1 >= logEl.scrollHeight);
                         logEl.innerHTML = html;
                         if (wasAtBottom) {

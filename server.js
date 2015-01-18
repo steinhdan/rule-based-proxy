@@ -13,10 +13,10 @@ app.use(bodyParser.json({ type: 'application/json' }));
 app.use(express.static(__dirname + '/public'));
 app.post('/config', function(req, res){
     res.setHeader('Content-Type', 'application/json');
-    if (typeof req.body !== 'object') {
+    if (typeof req.body !== 'object' || !req.body.allowedApps) {
         res.status(400).end('Bad request');
     } else {
-        fs.writeFileSync('./config-in.json', JSON.stringify(req.body));
+        fs.writeFileSync('./config.json', JSON.stringify(req.body, null, 2));
         res.end(JSON.stringify({ result: 'OK' }));
     }
 });
