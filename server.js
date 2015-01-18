@@ -1,8 +1,39 @@
-var fs = require('fs');
-var http = require('http');
-var setup = require('./proxy-server/proxy');
+var fs = require('fs'),
+    http = require('http'),
+    express = require('express'),
+    bodyParser = require('body-parser'),
+    setup = require('./proxy-server/proxy');
 
 
+
+// configure Express
+var app = express();
+var uiServer = http.createServer(app);
+app.use(bodyParser.json({ type: 'application/json' }));
+app.use(express.static(__dirname + '/public'));
+app.post('/config', function(req, res){
+    res.setHeader('Content-Type', 'application/json');
+    if (typeof req.body !== 'object') {
+        res.status(400).end('Bad request');
+    } else {
+        fs.writeFileSync('./config-in.json', JSON.stringify(req.body));
+        res.end(JSON.stringify({ result: 'OK' }));
+    }
+});
+app.get('/config', function(req, res){
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(serverContext.config));
+});
+app.get('/request-log', function(req, res){
+    // TODO: Remove assumption that there is at max one request per millisecond
+    var afterTime = req.param['afterTime'] || 0;
+    var logEntriesToSend = requestLog.filter(function(entry) {
+        return entry.time > afterTime;
+    });
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(JSON.stringify(logEntriesToSend)));
+});
+app.listen(8080);
 
 
 // Setup initial empty config, read config from file and setup watcher for config file
@@ -14,6 +45,7 @@ function readConfig() {
         newConfig.allowedApps.forEach(function(app) {
             app.urls.forEach(function(stringRule, i, rules) {
                 rules[i] = new RegExp(stringRule, 'i');
+                rules[i].toJSON = function() { return stringRule; };
             });
         });
         serverContext.config = newConfig;
@@ -34,6 +66,7 @@ readConfig();
 
 
 // Setup the proxy
+var requestLog = [];
 
 // Helper callback function to check if requested URL is allowed
 function allowRequest(req, url) {
@@ -45,12 +78,17 @@ function allowRequest(req, url) {
             }
         });
     });
-    console.log((allow ? 'ALLOW: ' : 'DENY:  ') + req.method + ' ' + url.toString());
+    console.log((allow ? 'ALLOW: ' : 'DENY:  ') + req.method + ' ' + url);
+
+    requestLog.push({ id: requestLog.sequenceNumber, time: new Date().getTime(), allow: allow, method: req.method, url: url });
+    while (requestLog.length > 1000) {
+        requestLog.shift();
+    }
     return allow;
 }
 
 var proxyServer = setup(http.createServer(), undefined, allowRequest);
-
 proxyServer.listen(47672, function () {
     console.log('HTTP(s) proxy server listening on port %d', proxyServer.address().port);
 });
+
