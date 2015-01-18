@@ -70,13 +70,17 @@
     <script type="text/javascript">
 
         // The config editor logic
+        var latestServerConfig = '';
         function pollConfig() {
             $.ajax({
                 type: 'GET',
                 url: 'config?rnd=' + Math.random(),
                 success: function (data) {
-                    document.getElementById('config').innerHTML = JSON.stringify(data, null, 2);
-                    // configEditor.setValue(JSON.stringify(data, null, 2));
+                    var configEl = document.getElementById('config');
+                    if (!latestServerConfig || latestServerConfig === configEl.value) {
+                        configEl.value = JSON.stringify(data, null, 2);
+                        latestServerConfig = configEl.value;
+                    }
                     setTimeout(pollConfig, 10000);
                 },
                 error: function () {
