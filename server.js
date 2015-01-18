@@ -2,11 +2,11 @@ var fs = require('fs'),
     http = require('http'),
     express = require('express'),
     bodyParser = require('body-parser'),
-    setup = require('./proxy-server/proxy');
+    setup = require('./proxy');
 
 
+// ---------- The UI - Express ---------------------------------------
 
-// configure Express
 var app = express();
 var uiServer = http.createServer(app);
 app.use(bodyParser.json({ type: 'application/json' }));
@@ -26,7 +26,7 @@ app.get('/config', function(req, res){
 });
 app.get('/request-log', function(req, res){
     // TODO: Remove assumption that there is at max one request per millisecond
-    var afterTime = req.param['afterTime'] || 0;
+    var afterTime = parseInt(req.query.afterTime || '0');
     var logEntriesToSend = requestLog.filter(function(entry) {
         return entry.time > afterTime;
     });
@@ -35,6 +35,9 @@ app.get('/request-log', function(req, res){
 });
 app.listen(47673);
 
+
+
+// ---------- The Config (monitored JSON file on disk) ---------------------------------------
 
 // Setup initial empty config, read config from file and setup watcher for config file
 var serverContext = { config: { } };
@@ -64,8 +67,8 @@ readConfig();
 
 
 
+// ---------- The HTTP / HTTPS proxy ---------------------------------------
 
-// Setup the proxy
 var requestLog = [];
 
 // Helper callback function to check if requested URL is allowed

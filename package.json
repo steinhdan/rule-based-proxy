@@ -1,5 +1,5 @@
 {
-  "name": "dmpgw",
+  "name": "rule-based-proxy",
   "private": true,
   "dependencies": {
     "body-parser": "~1.9.3",

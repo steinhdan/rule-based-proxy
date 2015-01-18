@@ -4,22 +4,23 @@
 
     <title>Rule-based proxy</title>
 
-    <script type="text/javascript" src="http://cdn.cxense.com/cx.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 
     <style type="text/css">
         html, body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
             box-sizing: border-box; width: 100%; height: 100%; font-size: 0; overflow: hidden; }
-        div { box-sizing: border-box; height: 100% }
+
         #header { height: 50px; text-align: center; overflow: hidden; }
-        h1 { font-size: 30px; margin: 5px 0 0 0; }
         #main { box-sizing: border-box; margin: 0; padding-bottom: 50px; height: 100%; position: relative; }
-        .panel { box-sizing: border-box; position: relative; padding: 20px 10px 10px 10px; height: 100%; width: 50%; margin: 0; }
-        #leftPanel { left: 0; top: 0; padding-right: 5px; }
-        #rightPanel { left: 50%; top: -100%; padding-left: 5px; }
+
+        .panel { box-sizing: border-box; position: relative; padding: 20px 10px 10px 10px; height: 100%; margin: 0; }
+        #leftPanel { left: 0; top: 0; padding-right: 5px; width: 40%; }
+        #rightPanel { left: 40%; top: -100%; padding-left: 5px; width: 60% }
+
         .step { box-sizing: border-box; border: 1px solid #c0c0c0; border-radius: 10px 10px 0 0; background-color: #ffffff;
             font-size: 9pt; width: 100%; height: 100%; padding: 0 0 50px 0; margin: 0px; }
-        .CodeMirror-scroll { overflow-y: hidden; overflow-x: auto; }
+
+        h1 { font-size: 30px; margin: 5px 0 0 0; }
         h2 {
             box-sizing: border-box;
             margin: 10px 0 2px 0;
@@ -30,8 +31,10 @@
             font-size: 20px;
             text-align: center;
         }
-        pre {  box-sizing: border-box; font: 12px/12px 'Courier new',monospace; overflow: scroll; height: 100%; margin: 0; }
-        .content {  box-sizing: border-box; margin: 4px; }
+        #config { display: block; width: 100%; height: 100%;
+            font: 12px/12px 'Courier new',monospace; overflow: scroll; margin: 0; padding: 0; }
+        #log { box-sizing: border-box; font: 12px/12px 'Courier new',monospace; overflow: scroll; height: 100%; margin: 0; }
+        .content { box-sizing: border-box; margin: 0; height: 100%; }
 
     </style>
 
@@ -45,9 +48,9 @@
             <div id="step1" class="step">
                 <h2>Config</h2>
                 <div class="content">
-                    <pre id="config">
-                        (no data received yet)
-                    </pre>
+                    <textarea id="config">
+(no data received yet)
+                    </textarea>
                 </div>
             </div>
         </div>
@@ -65,34 +68,15 @@
 
 
     <script type="text/javascript">
-        var afterTime = 0;
-        function pollRequestLog() {
-            $.ajax({
-                type: 'GET',
-                url: 'request-log?afterTime=' + afterTime + '&rnd=' + Math.random(),
-                success: function (logEntries) {
-                    var html = '';
-                    cX.Array.forEach(logEntries, function(entry) {
-                        html += (entry.allow ? 'ALLOW ' : 'DENY  ') + entry.method + ' ' + entry.url + '\n';
-                        afterTime = entry.time;
-                    });
-                    document.getElementById('log').innerHTML = html;
-                    setTimeout(pollRequestLog, 5000);
-                },
-                error: function () {
-                    setTimeout(pollRequestLog, 5000);
-                }
-            });
-        }
-        pollRequestLog();
 
+        // The config editor logic
         function pollConfig() {
             $.ajax({
                 type: 'GET',
                 url: 'config?rnd=' + Math.random(),
                 success: function (data) {
-                    var html = JSON.stringify(data, null, 4);
-                    document.getElementById('config').innerHTML = html;
+                    document.getElementById('config').innerHTML = JSON.stringify(data, null, 2);
+                    // configEditor.setValue(JSON.stringify(data, null, 2));
                     setTimeout(pollConfig, 10000);
                 },
                 error: function () {
@@ -101,6 +85,43 @@
             });
         }
         pollConfig();
+
+
+        // The request log logic
+        var requestLog = [];
+        var afterTime = 0;
+        function pollRequestLog() {
+            $.ajax({
+                type: 'GET',
+                url: 'request-log?afterTime=' + afterTime + '&rnd=' + Math.random(),
+                success: function (logEntries) {
+                    if (logEntries.length > 0) {
+                        var html = '';
+                        logEntries.forEach(function (entry) {
+                            requestLog.push(entry);
+                            afterTime = entry.time;
+                        });
+                        while(requestLog.length > 1000) {
+                            requestLog.shift();
+                        }
+                        requestLog.forEach(function (entry) {
+                            html += (entry.allow ? 'ALLOW ' : 'DENY  ') + entry.method + ' ' + entry.url + '\n';
+                        });
+                        var logEl = document.getElementById('log');
+                        var wasAtBottom = (logEl.scrollTop + logEl.clientHeight + 1 >= logEl.scrollHeight);
+                        logEl.innerHTML = html;
+                        if (wasAtBottom) {
+                            setTimeout(function () { logEl.scrollTop = logEl.scrollHeight; }, 1);
+                        }
+                    }
+                    setTimeout(pollRequestLog, 500);
+                },
+                error: function () {
+                    setTimeout(pollRequestLog, 5000);
+                }
+            });
+        }
+        pollRequestLog();
 
     </script>
 
